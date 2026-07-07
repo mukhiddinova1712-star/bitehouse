@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a2a1a"/>
+      <stop offset="100%" style="stop-color:#0a1628"/>
+    </linearGradient>
+    <linearGradient id="stalk" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4a7a3a"/>
+      <stop offset="50%" style="stop-color:#6a9a4a"/>
+      <stop offset="100%" style="stop-color:#3a6a2a"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <!-- Grill marks on plate -->
+  <ellipse cx="200" cy="190" rx="160" ry="40" fill="#1a2a1e" opacity="0.6"/>
+  <!-- Asparagus stalks -->
+  <rect x="80" y="80" width="14" height="180" rx="7" fill="url(#stalk)" transform="rotate(-5,80,80)"/>
+  <rect x="105" y="75" width="14" height="185" rx="7" fill="url(#stalk)" transform="rotate(-2,105,75)"/>
+  <rect x="130" y="78" width="14" height="182" rx="7" fill="url(#stalk)"/>
+  <rect x="155" y="72" width="14" height="188" rx="7" fill="url(#stalk)" transform="rotate(2,155,72)"/>
+  <rect x="180" y="76" width="14" height="184" rx="7" fill="url(#stalk)" transform="rotate(-1,180,76)"/>
+  <rect x="205" y="74" width="14" height="186" rx="7" fill="url(#stalk)" transform="rotate(3,205,74)"/>
+  <rect x="230" y="79" width="14" height="181" rx="7" fill="url(#stalk)" transform="rotate(-3,230,79)"/>
+  <rect x="255" y="77" width="14" height="183" rx="7" fill="url(#stalk)" transform="rotate(1,255,77)"/>
+  <rect x="280" y="82" width="14" height="178" rx="7" fill="url(#stalk)" transform="rotate(-4,280,82)"/>
+  <!-- Tips (darker green buds) -->
+  <ellipse cx="87" cy="82" rx="8" ry="12" fill="#3a6a2a"/>
+  <ellipse cx="112" cy="77" rx="8" ry="12" fill="#3a6a2a"/>
+  <ellipse cx="137" cy="80" rx="8" ry="12" fill="#3a6a2a"/>
+  <ellipse cx="162" cy="74" rx="8" ry="12" fill="#3a6a2a"/>
+  <ellipse cx="187" cy="78" rx="8" ry="12" fill="#3a6a2a"/>
+  <ellipse cx="212" cy="76" rx="8" ry="12" fill="#3a6a2a"/>
+  <ellipse cx="237" cy="81" rx="8" ry="12" fill="#3a6a2a"/>
+  <ellipse cx="262" cy="79" rx="8" ry="12" fill="#3a6a2a"/>
+  <ellipse cx="287" cy="84" rx="8" ry="12" fill="#3a6a2a"/>
+  <!-- Grill marks -->
+  <rect x="75" y="150" width="240" height="5" rx="2" fill="#2a1a00" opacity="0.5"/>
+  <rect x="75" y="165" width="240" height="5" rx="2" fill="#2a1a00" opacity="0.5"/>
+  <!-- Parmesan shavings -->
+  <ellipse cx="150" cy="115" rx="18" ry="6" fill="#f5e8c0" opacity="0.7" transform="rotate(-20,150,115)"/>
+  <ellipse cx="220" cy="120" rx="15" ry="5" fill="#f5e8c0" opacity="0.6" transform="rotate(15,220,120)"/>
+  <ellipse cx="185" cy="108" rx="12" ry="4" fill="#f5e8c0" opacity="0.65" transform="rotate(-10,185,108)"/>
+  <!-- Balsamic drizzle -->
+  <path d="M90 200 Q150 185 220 195 Q280 205 330 195" stroke="#4a1a00" stroke-width="3" fill="none" opacity="0.7"/>
+  <!-- Label -->
+  <text x="200" y="258" font-family="Georgia,serif" font-size="16" font-weight="bold" fill="#D4AF37" text-anchor="middle">Asparagus Grill</text>
+  <text x="200" y="276" font-family="Georgia,serif" font-size="11" fill="#a08830" text-anchor="middle" opacity="0.8">Balzamik · Parmezano · 180g</text>
+</svg>
