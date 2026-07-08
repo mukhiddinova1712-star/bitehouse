@@ -94,7 +94,7 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
 
   const addCustomerLocal = () => {
     if (!newCustomer.name || !newCustomer.phone) {
-      toast.error("Ism va telefon majburiy!", { style: { background: "#112052", color: "#f0f0f0" } });
+      toast.error("Ism familiya va telefon majburiy!", { style: { background: "#112052", color: "#f0f0f0" } });
       return;
     }
     addCustomer({
@@ -312,8 +312,8 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
                         </div>
                         <div className="space-y-4">
                           <div>
-                            <label className="text-silver-400 text-xs font-sans tracking-wide block mb-2">Ism *</label>
-                            <input value={newCustomer.name} onChange={e => setNewCustomer(p => ({ ...p, name: e.target.value }))} className="input-luxury w-full px-4 py-3 rounded-xl text-sm" placeholder="To'liq ism..." />
+                            <label className="text-silver-400 text-xs font-sans tracking-wide block mb-2">Ism Familiya *</label>
+                            <input value={newCustomer.name} onChange={e => setNewCustomer(p => ({ ...p, name: e.target.value }))} className="input-luxury w-full px-4 py-3 rounded-xl text-sm" placeholder="Ism Familiya..." />
                           </div>
                           <div>
                             <label className="text-silver-400 text-xs font-sans tracking-wide block mb-2">Telefon *</label>
@@ -355,7 +355,7 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead><tr className="border-b border-silver-800/30">{["#", "Ism", "Telefon", "Email", "Buyurtmalar", "Jami xarid", "Status", "Amal"].map(h => <th key={h} className="text-left px-5 py-3 text-silver-400 text-xs font-sans tracking-wider uppercase">{h}</th>)}</tr></thead>
+                      <thead><tr className="border-b border-silver-800/30">{["#", "Ism Familiya", "Telefon", "Email", "Buyurtmalar", "Jami xarid", "Status", "Amal"].map(h => <th key={h} className="text-left px-5 py-3 text-silver-400 text-xs font-sans tracking-wider uppercase">{h}</th>)}</tr></thead>
                       <tbody>
                         {customers.map((c, i) => (
                           <tr key={c.id} className="border-b border-silver-800/10 hover:bg-white/5 transition-colors">
