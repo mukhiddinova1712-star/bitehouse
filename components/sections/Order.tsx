@@ -24,6 +24,7 @@ export default function Order() {
   const [payment, setPayment] = useState("cash");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [name, setName] = useState("");
   const ref = useRef(null);
@@ -41,8 +42,8 @@ export default function Order() {
   const grandTotal = total + deliveryFee;
 
   const handleCheckout = () => {
-    if (!address || !phone) {
-      toast.error(locale === "en" ? "Enter address and phone!" : locale === "ru" ? "Введите адрес и телефон!" : "Manzil va telefon raqamni kiriting!", { style: { background: "#112052", color: "#f0f0f0" } });
+    if (!name || !phone) {
+      toast.error(locale === "en" ? "Enter full name and phone!" : locale === "ru" ? "Введите имя и телефон!" : "Ism familiya va telefon raqamni kiriting!", { style: { background: "#112052", color: "#f0f0f0" } });
       return;
     }
     if (isCardPayment && cardNumber.replace(/\s/g, "").length < 16) {
@@ -51,8 +52,8 @@ export default function Order() {
     }
     const newOrder = {
       id: `#BH-${Date.now().toString().slice(-4)}`,
-      customer: name || (locale === "en" ? "Customer" : locale === "ru" ? "Клиент" : "Mijoz"),
-      phone, address,
+      customer: name,
+      phone, address: email || "—",
       items: cart.map(i => `${getName(i)} x${i.quantity}`).join(", "),
       total: grandTotal, payment, status: "pending",
       time: new Date().toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" }),
@@ -60,7 +61,7 @@ export default function Order() {
     addAdminOrder(newOrder);
     toast.success(locale === "en" ? "Order placed! We will deliver soon." : locale === "ru" ? "Заказ принят!" : "Buyurtmangiz qabul qilindi!", { duration: 5000, style: { background: "#112052", color: "#f0f0f0", border: "1px solid rgba(212,175,55,0.3)" } });
     clearCart();
-    setAddress(""); setPhone(""); setCardNumber(""); setName("");
+    setEmail(""); setPhone(""); setCardNumber(""); setName("");
   };
 
   const featured = menuItems.filter(i => i.tags.includes("popular")).slice(0, 6);
@@ -133,9 +134,9 @@ export default function Order() {
                     </AnimatePresence>
                   </div>
                   <div className="space-y-3 mb-4">
-                    <input value={name} onChange={e => setName(e.target.value)} className="input-luxury w-full px-3 py-2 rounded-lg text-xs" placeholder={locale === "en" ? "Your name..." : locale === "ru" ? "Ваше имя..." : "Ismingiz..."} />
-                    <input value={address} onChange={e => setAddress(e.target.value)} className="input-luxury w-full px-3 py-2 rounded-lg text-xs" placeholder={locale === "en" ? "Delivery address..." : locale === "ru" ? "Адрес доставки..." : "Yetkazib berish manzili..."} />
+                    <input value={name} onChange={e => setName(e.target.value)} className="input-luxury w-full px-3 py-2 rounded-lg text-xs" placeholder={locale === "en" ? "Full name (first & last)..." : locale === "ru" ? "Имя и фамилия..." : "Ism Familiya..."} />
                     <input value={phone} onChange={e => setPhone(e.target.value)} className="input-luxury w-full px-3 py-2 rounded-lg text-xs" placeholder={locale === "en" ? "Phone number..." : locale === "ru" ? "Номер телефона..." : "Telefon raqam..."} />
+                    <input value={email} onChange={e => setEmail(e.target.value)} className="input-luxury w-full px-3 py-2 rounded-lg text-xs" placeholder={locale === "en" ? "Email..." : locale === "ru" ? "Эл. почта..." : "Email..."} type="email" />
                     <AnimatePresence>
                       {isCardPayment && (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
