@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/context/LanguageContext";
-import { FiArrowRight } from "react-icons/fi";
+import { useOrders } from "@/context/OrderContext";
+import { FiArrowRight, FiUser, FiPhone, FiMail, FiX, FiLogIn } from "react-icons/fi";
 
 const stats = [
   { value: "14+", keyUz: "stat1" },
@@ -12,8 +13,12 @@ const stats = [
 ];
 
 export default function Hero() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const { addCustomer } = useOrders();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [showLogin, setShowLogin] = useState(false);
+  const [form, setForm] = useState({ name: "", phone: "", email: "" });
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -57,6 +62,25 @@ export default function Hero() {
 
   const scrollTo = (id: string) => { document.querySelector(id)?.scrollIntoView({ behavior: "smooth" }); };
 
+  const handleSubmit = () => {
+    if (!form.name || !form.phone) {
+      setError(locale === "en" ? "Name and phone are required!" : locale === "ru" ? "Имя и телефон обязательны!" : "Ism va telefon majburiy!");
+      return;
+    }
+    addCustomer({
+      id: Date.now(),
+      name: form.name,
+      phone: form.phone,
+      email: form.email,
+      orders: 0,
+      total: 0,
+      status: "Yangi",
+    });
+    setShowLogin(false);
+    setForm({ name: "", phone: "", email: "" });
+    setError("");
+  };
+
   return (
     <section id="home" className="relative min-h-screen flex items-center overflow-hidden bg-navy-900">
       <div className="absolute inset-0">
@@ -75,6 +99,14 @@ export default function Hero() {
           </motion.h1>
           <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="text-silver-400 font-sans text-lg leading-relaxed mb-10 max-w-2xl">{t.hero.subtitle}</motion.p>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="flex flex-wrap gap-4 mb-16">
+            {/* Kirish tugmasi */}
+            <button
+              onClick={() => setShowLogin(true)}
+              className="btn-outline-gold px-8 py-4 rounded text-sm tracking-widest flex items-center gap-2 group"
+            >
+              <FiLogIn className="group-hover:translate-x-1 transition-transform" />
+              {locale === "en" ? "Sign In" : locale === "ru" ? "Войти" : "Kirish"}
+            </button>
             <button onClick={() => scrollTo("#reservation")} className="btn-gold px-8 py-4 rounded text-sm tracking-widest flex items-center gap-2 group">
               {t.hero.btnReserve}<FiArrowRight className="group-hover:translate-x-1 transition-transform" />
             </button>
@@ -94,6 +126,85 @@ export default function Hero() {
         <div className="w-px h-12 bg-gradient-to-b from-gold-500/60 to-transparent animate-pulse" />
         <div className="w-1.5 h-1.5 rounded-full bg-gold-500 animate-bounce" />
       </motion.div>
+
+      {/* Kirish modali */}
+      <AnimatePresence>
+        {showLogin && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[80] bg-navy-950/90 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowLogin(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="glass-dark rounded-3xl p-8 w-full max-w-md border border-gold-500/20 shadow-luxury"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="font-display text-xl text-gold-gradient font-bold tracking-widest">
+                    {locale === "en" ? "Sign In" : locale === "ru" ? "Войти" : "Kirish"}
+                  </h2>
+                  <p className="text-silver-500 text-xs font-sans mt-1">
+                    {locale === "en" ? "Enter your details to continue" : locale === "ru" ? "Введите ваши данные" : "Ma'lumotlaringizni kiriting"}
+                  </p>
+                </div>
+                <button onClick={() => setShowLogin(false)} className="w-8 h-8 rounded-full border border-silver-700/30 flex items-center justify-center text-silver-400 hover:text-white transition-colors">
+                  <FiX size={14} />
+                </button>
+              </div>
+
+              <div className="luxury-divider mb-6">
+                <span className="text-gold-500/60 text-xs font-sans tracking-widest uppercase">BiteHouse</span>
+              </div>
+
+              <div className="space-y-4">
+                <div className="relative">
+                  <FiUser size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gold-500/60" />
+                  <input
+                    value={form.name}
+                    onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                    className="input-luxury w-full pl-10 pr-4 py-3 rounded-xl text-sm"
+                    placeholder={locale === "en" ? "Full name *" : locale === "ru" ? "Полное имя *" : "To'liq ismingiz *"}
+                  />
+                </div>
+                <div className="relative">
+                  <FiPhone size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gold-500/60" />
+                  <input
+                    value={form.phone}
+                    onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+                    className="input-luxury w-full pl-10 pr-4 py-3 rounded-xl text-sm"
+                    placeholder="+998 90 123 45 67 *"
+                  />
+                </div>
+                <div className="relative">
+                  <FiMail size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gold-500/60" />
+                  <input
+                    value={form.email}
+                    onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                    className="input-luxury w-full pl-10 pr-4 py-3 rounded-xl text-sm"
+                    placeholder={locale === "en" ? "Email (optional)" : locale === "ru" ? "Email (необязательно)" : "Email (ixtiyoriy)"}
+                  />
+                </div>
+                {error && (
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-400 text-xs font-sans bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+                    ❌ {error}
+                  </motion.p>
+                )}
+                <button onClick={handleSubmit} className="btn-gold w-full py-3 rounded-xl text-sm tracking-widest flex items-center justify-center gap-2">
+                  <FiLogIn size={14} />
+                  {locale === "en" ? "Continue" : locale === "ru" ? "Продолжить" : "Davom etish"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
