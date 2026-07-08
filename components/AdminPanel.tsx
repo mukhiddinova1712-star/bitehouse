@@ -6,12 +6,11 @@ import { menuItems as initialMenuItems, MenuItem } from "@/lib/menuData";
 import { useOrders } from "@/context/OrderContext";
 import {
   FiGrid, FiShoppingBag, FiCalendar, FiUsers, FiDollarSign, FiTrendingUp, FiBarChart2,
-  FiPlus, FiEdit2, FiTrash2, FiX, FiCheck, FiLogOut, FiSettings,
+  FiPlus, FiTrash2, FiX, FiCheck, FiLogOut, FiSettings,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 
 type Reservation = { id: number; name: string; date: string; time: string; guests: number; branch: string; status: string };
-type Customer = { id: number; name: string; phone: string; email: string; orders: number; total: number; status: string };
 type AdminSection = "dashboard" | "orders" | "reservations" | "menu" | "stats" | "customers";
 
 const initReservations: Reservation[] = [
@@ -77,18 +76,12 @@ function OrdersSection({ adminOrders, confirmAdminOrder, deleteAdminOrder, forma
 
 export default function AdminPanel({ onClose }: { onClose: () => void }) {
   const { t, locale } = useLanguage();
-  const { adminOrders, confirmAdminOrder, deleteAdminOrder } = useOrders();
+  const { adminOrders, confirmAdminOrder, deleteAdminOrder, customers, addCustomer, deleteCustomer } = useOrders();
   const [section, setSection] = useState<AdminSection>("dashboard");
   const [search, setSearch] = useState("");
   const [reservations, setReservations] = useState<Reservation[]>(initReservations);
   const [menuList, setMenuList] = useState<MenuItem[]>(initialMenuItems);
 
-  const [customers, setCustomers] = useState<Customer[]>([
-    { id: 1, name: "Alisher T.", phone: "+998 90 123 45 67", email: "alisher@gmail.com", orders: 12, total: 4200000, status: "VIP" },
-    { id: 2, name: "Malika R.", phone: "+998 91 234 56 78", email: "malika@gmail.com", orders: 8, total: 2800000, status: "Doimiy" },
-    { id: 3, name: "Jasur K.", phone: "+998 93 345 67 89", email: "jasur@gmail.com", orders: 15, total: 6500000, status: "VIP" },
-    { id: 4, name: "Nodira S.", phone: "+998 94 456 78 90", email: "nodira@gmail.com", orders: 5, total: 1500000, status: "Yangi" },
-  ]);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: "", phone: "", email: "", status: "Yangi", total: "", orders: "" });
 
@@ -99,12 +92,12 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
   const deleteRes = (id: number) => { setReservations(prev => prev.filter(r => r.id !== id)); toast.success("Bron bekor qilindi!", { style: { background: "#112052", color: "#f0f0f0" } }); };
   const deleteMenuItem = (id: number) => { setMenuList(prev => prev.filter(m => m.id !== id)); toast.success("Taom o'chirildi!", { style: { background: "#112052", color: "#f0f0f0" } }); };
 
-  const addCustomer = () => {
+  const addCustomerLocal = () => {
     if (!newCustomer.name || !newCustomer.phone) {
       toast.error("Ism va telefon majburiy!", { style: { background: "#112052", color: "#f0f0f0" } });
       return;
     }
-    const customer: Customer = {
+    addCustomer({
       id: Date.now(),
       name: newCustomer.name,
       phone: newCustomer.phone,
@@ -112,16 +105,10 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
       orders: Number(newCustomer.orders) || 0,
       total: Number(newCustomer.total) || 0,
       status: newCustomer.status,
-    };
-    setCustomers(prev => [...prev, customer]);
+    });
     setNewCustomer({ name: "", phone: "", email: "", status: "Yangi", total: "", orders: "" });
     setShowAddCustomer(false);
     toast.success("Mijoz qo'shildi!", { style: { background: "#112052", color: "#f0f0f0", border: "1px solid rgba(212,175,55,0.3)" } });
-  };
-
-  const deleteCustomer = (id: number) => {
-    setCustomers(prev => prev.filter(c => c.id !== id));
-    toast.success("Mijoz o'chirildi!", { style: { background: "#112052", color: "#f0f0f0" } });
   };
 
   const filteredMenu = menuList.filter(item => getName(item).toLowerCase().includes(search.toLowerCase()));
@@ -174,9 +161,9 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                   {[
                     { icon: FiShoppingBag, label: t.admin.stats.todayOrders, value: adminOrders.length.toString(), color: "text-blue-400" },
-                    { icon: FiDollarSign, label: t.admin.stats.totalRevenue, value: "12.4M", color: "text-green-400" },
-                    { icon: FiCalendar, label: t.admin.stats.reservations, value: reservations.length.toString(), color: "text-purple-400" },
-                    { icon: FiUsers, label: t.admin.stats.customers, value: "1,240", color: "text-gold-500" },
+                    { icon: FiDollarSign, label: t.admin.stats.totalRevenue, value: adminOrders.reduce((s, o) => s + o.total, 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " so'm", color: "text-green-400" },
+                    { icon: FiCalendar, label: t.admin.stats.reservations, value: reservations.filter(r => r.status !== "cancelled").length.toString(), color: "text-purple-400" },
+                    { icon: FiUsers, label: t.admin.stats.customers, value: customers.length.toString(), color: "text-gold-500" },
                   ].map((stat, i) => (
                     <div key={i} className="glass rounded-2xl p-6">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-4 ${stat.color} bg-current/10`}><stat.icon size={18} /></div>
@@ -353,7 +340,7 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
                             </select>
                           </div>
                           <div className="flex gap-3 pt-2">
-                            <button onClick={addCustomer} className="btn-gold flex-1 py-3 rounded-xl text-xs tracking-widest">Qo&apos;shish</button>
+                            <button onClick={addCustomerLocal} className="btn-gold flex-1 py-3 rounded-xl text-xs tracking-widest">Qo&apos;shish</button>
                             <button onClick={() => setShowAddCustomer(false)} className="btn-outline-gold px-6 py-3 rounded-xl text-xs tracking-widest">Bekor</button>
                           </div>
                         </div>
