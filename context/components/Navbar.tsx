@@ -1,294 +1,175 @@
 "use client";
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { FiShoppingCart, FiMenu, FiX, FiLogIn, FiLogOut, FiUser } from "react-icons/fi";
+import { useRef, useState } from "react";
+import { motion, useInView, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/context/LanguageContext";
 import { useCart } from "@/context/CartContext";
 import { useOrders } from "@/context/OrderContext";
-import { Locale } from "@/lib/i18n";
-import { FiPhone, FiMail } from "react-icons/fi";
+import { menuItems } from "@/lib/menuData";
+import { FiShoppingCart, FiPlus, FiMinus, FiTrash2, FiTruck, FiCreditCard } from "react-icons/fi";
+import toast from "react-hot-toast";
 
-const LANGS: { code: Locale; label: string; flag: string }[] = [
-  { code: "uz", label: "UZ", flag: "🇺🇿" },
-  { code: "en", label: "EN", flag: "🇬🇧" },
-  { code: "ru", label: "RU", flag: "🇷🇺" },
+const paymentMethods = [
+  { id: "cash", label: "cash", icon: "💵" },
+  { id: "card", label: "card", icon: "💳" },
+  { id: "click", label: "click", icon: "📱" },
+  { id: "payme", label: "payme", icon: "📲" },
+  { id: "visa", label: "visa", icon: "🌐" },
 ];
+const cardPayments = ["card", "click", "payme", "visa"];
 
-export default function Navbar() {
-  const { t, locale, setLocale } = useLanguage();
-  const { count, cart, total } = useCart();
-  const { customers, addCustomer, currentUser, login, logout, isLoggedIn } = useOrders();
-  const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [langOpen, setLangOpen] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", email: "" });
-  const [error, setError] = useState("");
+export default function Order() {
+  const { t, locale } = useLanguage();
+  const { cart, addToCart, removeFromCart, updateQuantity, clearCart, total, count } = useCart();
+  const { addAdminOrder } = useOrders();
+  const [payment, setPayment] = useState("cash");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-100px" });
+  const isCardPayment = cardPayments.includes(payment);
 
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener("scroll", handleScroll);
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest("[data-lang-dropdown]")) setLangOpen(false);
-      if (!target.closest("[data-cart-dropdown]")) setCartOpen(false);
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      document.removeEventListener("mousedown", handleClick);
-    };
-  }, []);
-
-  const navLinks = [
-    { href: "#home", label: t.nav.home },
-    { href: "#about", label: t.nav.about },
-    { href: "#menu", label: t.nav.menu },
-    { href: "#gallery", label: t.nav.gallery },
-    { href: "#contact", label: t.nav.contact },
-  ];
-
-  const scrollTo = (id: string) => {
-    const el = document.querySelector(id);
-    if (el) el.scrollIntoView({ behavior: "smooth" });
-    setMenuOpen(false);
+  const getName = (item: typeof menuItems[0]) => {
+    if (locale === "en") return item.nameEn;
+    if (locale === "ru") return item.nameRu;
+    return item.nameUz;
   };
+  const formatPrice = (price: number) => price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " so'm";
+  const formatCardNumber = (val: string) => val.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
+  const deliveryFee = cart.length > 0 ? 15000 : 0;
+  const grandTotal = total + deliveryFee;
 
-  const handleLogin = () => {
-    if (!form.name || !form.phone) {
-      setError(locale === "en" ? "Name and phone are required!" : locale === "ru" ? "Имя и телефон обязательны!" : "Ism va telefon majburiy!");
+  const handleCheckout = () => {
+    if (!name || !phone) {
+      toast.error(
+        locale === "en" ? "Enter full name and phone!" : locale === "ru" ? "Введите имя и телефон!" : "Ism familiya va telefon raqamni kiriting!",
+        { style: { background: "#112052", color: "#f0f0f0" } }
+      );
       return;
     }
-    // Telefon raqami allaqachon ro'yxatda bormi?
-    const existing = customers.find(c => c.phone.replace(/\s/g, "") === form.phone.replace(/\s/g, ""));
-    if (existing) {
-      login(existing);
-      setShowLogin(false);
-      setForm({ name: "", phone: "", email: "" });
-      setError("");
+    if (isCardPayment && cardNumber.replace(/\s/g, "").length < 16) {
+      toast.error(
+        locale === "en" ? "Enter valid card number!" : locale === "ru" ? "Введите номер карты!" : "To'liq karta raqamini kiriting!",
+        { style: { background: "#112052", color: "#f0f0f0" } }
+      );
       return;
     }
-    // Yangi mijoz qo'shamiz
-    const newCustomer = {
-      id: Date.now(),
-      name: form.name,
-      phone: form.phone,
-      email: form.email,
-      orders: 0,
-      total: 0,
-      status: "Yangi",
+    const newOrder = {
+      id: `#BH-${Date.now().toString().slice(-4)}`,
+      customer: name,
+      phone,
+      address: email || "—",
+      items: cart.map(i => `${getName(i)} x${i.quantity}`).join(", "),
+      total: grandTotal,
+      payment,
+      status: "pending",
+      time: new Date().toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" }),
     };
-    addCustomer(newCustomer);
-    login(newCustomer);
-    setShowLogin(false);
-    setForm({ name: "", phone: "", email: "" });
-    setError("");
+    addAdminOrder(newOrder);
+    toast.success(
+      locale === "en" ? "Order placed! We will deliver soon." : locale === "ru" ? "Заказ принят!" : "Buyurtmangiz qabul qilindi!",
+      { duration: 5000, style: { background: "#112052", color: "#f0f0f0", border: "1px solid rgba(212,175,55,0.3)" } }
+    );
+    clearCart();
+    setName(""); setPhone(""); setEmail(""); setCardNumber("");
   };
+
+  const featured = menuItems.filter(i => i.tags.includes("popular")).slice(0, 6);
 
   return (
-    <>
-      <motion.nav
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.6 }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled ? "glass-dark shadow-navy py-3" : "bg-transparent py-5"
-        }`}
-      >
-        <div className="container-custom flex items-center justify-between">
-          {/* Logo */}
-          <button onClick={() => scrollTo("#home")} className="flex items-center gap-3 group">
-            <div className="relative w-16 h-16 flex-shrink-0 drop-shadow-[0_0_12px_rgba(212,175,55,0.6)] group-hover:drop-shadow-[0_0_20px_rgba(212,175,55,0.9)] transition-all duration-500">
-              <svg viewBox="0 0 100 115" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-                <defs>
-                  <linearGradient id="ng1" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#D4AF37"/>
-                    <stop offset="50%" stopColor="#f2e09e"/>
-                    <stop offset="100%" stopColor="#b8941e"/>
-                  </linearGradient>
-                  <linearGradient id="ng2" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#1a2f60"/>
-                    <stop offset="100%" stopColor="#0a1628"/>
-                  </linearGradient>
-                </defs>
-                <path d="M28 28 L35 16 L43 24 L50 13 L57 24 L65 16 L72 28 Z" fill="url(#ng1)"/>
-                <rect x="26" y="26" width="48" height="4" rx="1" fill="url(#ng1)"/>
-                <path d="M18 32 L18 72 Q18 90 50 102 Q82 90 82 72 L82 32 Z" fill="url(#ng2)"/>
-                <path d="M18 32 L18 72 Q18 90 50 102 Q82 90 82 72 L82 32 Z" fill="none" stroke="url(#ng1)" strokeWidth="2"/>
-                <path d="M24 36 L24 71 Q24 85 50 95 Q76 85 76 71 L76 36 Z" fill="none" stroke="url(#ng1)" strokeWidth="0.7" opacity="0.5"/>
-                <text x="50" y="73" fontFamily="Georgia,serif" fontSize="30" fontWeight="900" fill="url(#ng1)" textAnchor="middle" letterSpacing="2">BH</text>
-                <line x1="36" y1="79" x2="64" y2="79" stroke="url(#ng1)" strokeWidth="0.8" opacity="0.6"/>
-                <circle cx="50" cy="79" r="1.5" fill="url(#ng1)"/>
-              </svg>
-            </div>
-            <div>
-              <div className="font-display text-xl font-bold tracking-widest text-gold-gradient leading-none">BITEHOUSE</div>
-              <div className="text-xs tracking-[0.25em] text-silver-400 font-sans uppercase">Premium &amp; Luxury</div>
-            </div>
-          </button>
-
-          {/* Desktop Nav Links */}
-          <div className="hidden lg:flex items-center gap-8">
-            {navLinks.map(link => (
-              <button key={link.href} onClick={() => scrollTo(link.href)} className="text-silver-300 hover:text-gold-500 font-sans text-sm tracking-widest uppercase transition-colors duration-300 relative group">
-                {link.label}
-                <span className="absolute -bottom-1 left-0 w-0 h-px bg-gold-500 group-hover:w-full transition-all duration-300" />
-              </button>
-            ))}
+    <section id="order" className="section-padding bg-navy-950 relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-72 h-72 rounded-full bg-gold-500/5 blur-3xl" />
+      <div className="container-custom" ref={ref}>
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={inView ? { opacity: 1, y: 0 } : {}} className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-gold-500/30 bg-gold-500/5 mb-4">
+            <span className="text-gold-500 text-xs font-sans tracking-[0.2em] uppercase">{t.order.badge}</span>
           </div>
-
-          {/* Right Actions */}
-          <div className="flex items-center gap-3">
-            {/* Language Switcher */}
-            <div className="relative" data-lang-dropdown>
-              <button onClick={() => setLangOpen(!langOpen)} className="flex items-center gap-1 px-3 py-1.5 rounded border border-gold-500/30 text-gold-500 text-xs font-sans tracking-wider uppercase hover:border-gold-500 transition-all">
-                {LANGS.find(l => l.code === locale)?.flag}
-                <span className="ml-1">{locale.toUpperCase()}</span>
-              </button>
-              <AnimatePresence>
-                {langOpen && (
-                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="absolute right-0 top-full mt-2 glass-dark rounded-lg overflow-hidden shadow-luxury min-w-[100px]">
-                    {LANGS.map(lang => (
-                      <button key={lang.code} onClick={() => { setLocale(lang.code); setLangOpen(false); }} className={`w-full flex items-center gap-2 px-4 py-2 text-xs font-sans tracking-wider uppercase transition-colors ${locale === lang.code ? "text-gold-500 bg-gold-500/10" : "text-silver-300 hover:text-gold-500 hover:bg-white/5"}`}>
-                        <span>{lang.flag}</span> {lang.label}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Cart */}
-            <div className="relative" data-cart-dropdown>
-              <button onClick={() => setCartOpen(!cartOpen)} className="relative w-9 h-9 flex items-center justify-center rounded-full border border-gold-500/30 text-gold-500 hover:border-gold-500 hover:bg-gold-500/10 transition-all">
-                <FiShoppingCart size={16} />
-                {count > 0 && <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-gold-500 text-navy-900 text-[10px] font-bold rounded-full flex items-center justify-center px-1">{count > 9 ? "9+" : count}</span>}
-              </button>
-              <AnimatePresence>
-                {cartOpen && (
-                  <motion.div initial={{ opacity: 0, y: -10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.95 }} transition={{ duration: 0.2 }} className="fixed right-4 top-20 w-80 glass-dark rounded-2xl shadow-luxury border border-gold-500/20 overflow-hidden z-[55]">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-gold-500/10">
-                      <span className="font-display text-gold-500 text-sm flex items-center gap-2"><FiShoppingCart size={14} /> {t.order.cart}{count > 0 && <span className="w-5 h-5 bg-gold-500 text-navy-900 text-[10px] font-bold rounded-full flex items-center justify-center">{count}</span>}</span>
-                      <button onClick={() => setCartOpen(false)} className="text-silver-500 hover:text-silver-300 transition-colors"><FiX size={14} /></button>
-                    </div>
-                    {cart.length === 0 ? (
-                      <div className="px-4 py-8 text-center"><FiShoppingCart size={32} className="text-silver-600 mx-auto mb-2" /><p className="text-silver-500 text-xs font-sans">Savat bo&apos;sh</p></div>
-                    ) : (
-                      <>
-                        <div className="max-h-64 overflow-y-auto px-4 py-3 space-y-3">
-                          {cart.map(item => (
-                            <div key={item.id} className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-navy-800"><img src={item.image} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} /></div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-white text-xs font-sans font-semibold truncate">{locale === "en" ? item.nameEn : locale === "ru" ? item.nameRu : item.nameUz}</p>
-                                <p className="text-gold-500 text-xs">{item.price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} so&apos;m</p>
-                              </div>
-                              <span className="text-silver-400 text-xs">x{item.quantity}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="px-4 py-3 border-t border-gold-500/10">
-                          <div className="flex justify-between text-sm mb-3"><span className="text-silver-400 font-sans text-xs">{t.order.total}:</span><span className="text-gold-500 font-bold text-xs">{total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} so&apos;m</span></div>
-                          <button onClick={() => { setCartOpen(false); scrollTo("#order"); }} className="btn-gold w-full py-2.5 rounded-xl text-xs tracking-widest">{t.order.checkout}</button>
-                        </div>
-                      </>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Login / User Button */}
-            {isLoggedIn ? (
-              <div className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-lg glass border border-gold-500/30">
-                <FiUser size={14} className="text-gold-500" />
-                <span className="text-gold-500 text-xs font-sans font-semibold tracking-wide">{currentUser?.name.split(" ")[0]}</span>
-                <button onClick={logout} className="ml-1 text-silver-500 hover:text-red-400 transition-colors" title="Chiqish">
-                  <FiLogOut size={13} />
-                </button>
-              </div>
-            ) : (
-              <button onClick={() => setShowLogin(true)} className="hidden lg:flex items-center gap-2 btn-gold px-5 py-2 rounded text-xs tracking-widest">
-                <FiLogIn size={14} />
-                {locale === "en" ? "Sign In" : locale === "ru" ? "Войти" : "Kirish"}
-              </button>
-            )}
-
-            {/* Mobile Menu Toggle */}
-            <button onClick={() => setMenuOpen(!menuOpen)} className="lg:hidden w-9 h-9 flex items-center justify-center text-gold-500">
-              {menuOpen ? <FiX size={20} /> : <FiMenu size={20} />}
-            </button>
-          </div>
-        </div>
-      </motion.nav>
-
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }} transition={{ type: "tween", duration: 0.3 }} className="fixed inset-0 z-40 glass-dark flex flex-col pt-24 px-8">
-            <div className="flex flex-col gap-6">
-              {navLinks.map((link, i) => (
-                <motion.button key={link.href} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.07 }} onClick={() => scrollTo(link.href)} className="text-left text-2xl font-display text-silver-200 hover:text-gold-500 transition-colors tracking-widest uppercase">
-                  {link.label}
-                </motion.button>
+          <h2 className="section-title text-gold-gradient">{t.order.title}</h2>
+          <div className="ornament mt-4 mb-6" />
+          <p className="text-silver-400 font-sans max-w-xl mx-auto">{t.order.subtitle}</p>
+        </motion.div>
+        <div className="grid lg:grid-cols-3 gap-8">
+          <motion.div initial={{ opacity: 0, x: -30 }} animate={inView ? { opacity: 1, x: 0 } : {}} transition={{ delay: 0.2 }} className="lg:col-span-2">
+            <h3 className="font-display text-xl text-gold-500 mb-6">⭐ Mashhur taomlar</h3>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {featured.map((item, i) => (
+                <motion.div key={item.id} initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.2 + i * 0.08 }} className="glass rounded-xl overflow-hidden flex items-center gap-3 p-3 group">
+                  <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-gradient-to-br from-navy-700 to-navy-900 flex items-center justify-center relative">
+                    <span className="text-2xl opacity-30">🍽️</span>
+                    <img src={item.image} alt={getName(item)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 absolute inset-0" onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0"; }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-white text-sm font-sans font-semibold truncate">{getName(item)}</h4>
+                    <p className="text-gold-500 text-sm font-bold mt-1">{formatPrice(item.price)}</p>
+                  </div>
+                  <button onClick={() => { addToCart(item); toast.success(`${getName(item)} qo'shildi!`, { icon: "🛒", style: { background: "#112052", color: "#f0f0f0" } }); }} className="w-8 h-8 rounded-full bg-gold-500/10 border border-gold-500/30 flex items-center justify-center text-gold-500 hover:bg-gold-500 hover:text-navy-900 transition-all flex-shrink-0">
+                    <FiPlus size={14} />
+                  </button>
+                </motion.div>
               ))}
-              {isLoggedIn ? (
-                <motion.button initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: navLinks.length * 0.07 }} onClick={logout} className="btn-outline-gold px-6 py-3 rounded text-sm tracking-widest mt-4 text-center flex items-center gap-2 justify-center">
-                  <FiLogOut size={14} /> {currentUser?.name.split(" ")[0]} — Chiqish
-                </motion.button>
-              ) : (
-                <motion.button initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: navLinks.length * 0.07 }} onClick={() => { setMenuOpen(false); setShowLogin(true); }} className="btn-gold px-6 py-3 rounded text-sm tracking-widest mt-4 text-center flex items-center gap-2 justify-center">
-                  <FiLogIn size={14} /> {locale === "en" ? "Sign In" : locale === "ru" ? "Войти" : "Kirish"}
-                </motion.button>
-              )}
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Login Modal */}
-      <AnimatePresence>
-        {showLogin && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[80] bg-navy-950/90 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowLogin(false)}>
-            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} transition={{ type: "spring", duration: 0.4 }} className="glass-dark rounded-3xl p-8 w-full max-w-md border border-gold-500/20 shadow-luxury" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="font-display text-xl text-gold-gradient font-bold tracking-widest">
-                    {locale === "en" ? "Sign In" : locale === "ru" ? "Войти" : "Kirish"}
-                  </h2>
-                  <p className="text-silver-500 text-xs font-sans mt-1">
-                    {locale === "en" ? "Enter your details to continue" : locale === "ru" ? "Введите ваши данные" : "Ma'lumotlaringizni kiriting"}
-                  </p>
+          <motion.div initial={{ opacity: 0, x: 30 }} animate={inView ? { opacity: 1, x: 0 } : {}} transition={{ delay: 0.4 }}>
+            <div className="glass-dark rounded-2xl p-6 sticky top-24">
+              <h3 className="font-display text-xl text-gold-500 mb-4 flex items-center gap-2">
+                <FiShoppingCart /> {t.order.cart}
+                {count > 0 && <span className="ml-auto w-6 h-6 bg-gold-500 text-navy-900 text-xs font-bold rounded-full flex items-center justify-center">{count}</span>}
+              </h3>
+              {cart.length === 0 ? (
+                <div className="text-center py-8 text-silver-500">
+                  <FiShoppingCart size={40} className="mx-auto mb-3 opacity-30" />
+                  <p className="text-sm font-sans">Savat bo&apos;sh</p>
                 </div>
-                <button onClick={() => setShowLogin(false)} className="w-8 h-8 rounded-full border border-silver-700/30 flex items-center justify-center text-silver-400 hover:text-white transition-colors"><FiX size={14} /></button>
-              </div>
-              <div className="luxury-divider mb-6">
-                <span className="text-gold-500/60 text-xs font-sans tracking-widest uppercase">BiteHouse</span>
-              </div>
-              <div className="space-y-4">
-                <div className="relative">
-                  <FiUser size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gold-500/60" />
-                  <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="input-luxury w-full pl-10 pr-4 py-3 rounded-xl text-sm" placeholder={locale === "en" ? "Full name *" : locale === "ru" ? "Полное имя *" : "To'liq ismingiz *"} />
-                </div>
-                <div className="relative">
-                  <FiPhone size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gold-500/60" />
-                  <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} className="input-luxury w-full pl-10 pr-4 py-3 rounded-xl text-sm" placeholder="+998 90 123 45 67 *" />
-                </div>
-                <div className="relative">
-                  <FiMail size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gold-500/60" />
-                  <input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} className="input-luxury w-full pl-10 pr-4 py-3 rounded-xl text-sm" placeholder={locale === "en" ? "Email (optional)" : locale === "ru" ? "Email (необязательно)" : "Email (ixtiyoriy)"} />
-                </div>
-                {error && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-400 text-xs font-sans bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">❌ {error}</motion.p>}
-                <button onClick={handleLogin} className="btn-gold w-full py-3 rounded-xl text-sm tracking-widest flex items-center justify-center gap-2">
-                  <FiLogIn size={14} />
-                  {locale === "en" ? "Continue" : locale === "ru" ? "Продолжить" : "Davom etish"}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
-}
+              ) : (
+                <>
+                  <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
+                    <AnimatePresence>
+                      {cart.map(item => (
+                        <motion.div key={item.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex items-center gap-2">
+                          <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                            <img src={item.image} alt="" className="w-full h-full object-cover" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-xs font-sans truncate">{getName(item)}</p>
+                            <p className="text-gold-500 text-xs">{formatPrice(item.price)}</p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-6 h-6 rounded-full border border-silver-700 text-silver-400 flex items-center justify-center hover:border-gold-500 hover:text-gold-500 transition-colors"><FiMinus size={10} /></button>
+                            <span className="text-white text-xs w-5 text-center">{item.quantity}</span>
+                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 rounded-full border border-silver-700 text-silver-400 flex items-center justify-center hover:border-gold-500 hover:text-gold-500 transition-colors"><FiPlus size={10} /></button>
+                            <button onClick={() => removeFromCart(item.id)} className="w-6 h-6 rounded-full border border-red-900/50 text-red-400 flex items-center justify-center hover:border-red-500 transition-colors ml-1"><FiTrash2 size={10} /></button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                  <div className="space-y-3 mb-4">
+                    <input
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      className="input-luxury w-full px-3 py-2 rounded-lg text-xs"
+                      placeholder={locale === "en" ? "Full name (first & last)..." : locale === "ru" ? "Имя и фамилия..." : "Ism Familiya..."}
+                    />
+                    <input
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      className="input-luxury w-full px-3 py-2 rounded-lg text-xs"
+                      placeholder={locale === "en" ? "Phone number..." : locale === "ru" ? "Номер телефона..." : "Telefon raqam..."}
+                    />
+                    <input
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      className="input-luxury w-full px-3 py-2 rounded-lg text-xs"
+                      placeholder={locale === "en" ? "Email..." : locale === "ru" ? "Эл. почта..." : "Email..."}
+                      type="email"
+                    />
+                    <AnimatePresence>
+                      {isCardPayment && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                          <div className="relative">
+                            <FiCreditCard size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gold-500" />
+                            <input value={cardNumber} onChange={e => setCardNumber(formatCardNumber(e.target.value))} className="input-luxury w-full pl-8 pr-3 py-2 rounded-lg text-xs tracking-widest" placeholder="0000 0000 0000 0000" maxLength={19} />
+                          </div>
+                        </motion.div>
+                      )}
